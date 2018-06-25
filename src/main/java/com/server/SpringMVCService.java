@@ -46,38 +46,52 @@ public class SpringMVCService {
 	public JSONObject queryFinanceService() {
 		JSONObject json = new JSONObject();
 
-		List<Map<String, Object>> list = null;
+		List<Map<String, Object>> bankSubTypeList = null;
+		List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
 		try {
-			list = operationMysql.queryFinance();
+
+			bankSubTypeList = financeMysql.queryBankSubTypeName();// 查询银行小类信息
+
+			for (Map<String, Object> bankSub : bankSubTypeList) {
+				list.addAll(operationMysql.queryFinance(bankSub));
+			}
+
 		} catch (Exception e) {
 			LOGGER.error(e.getMessage(), e);
 		}
-		List<String> type = new ArrayList<String>();
-		type.add("E123");
-		type.add("E122");
-		type.add("E134");
-		type.add("E131");
-		type.add("E130");
-		type.add("hj_error");
-		type.add("rg_error");
-		type.add("sb_error");
-		type.add("isAlarm");
-		type.add("noAlarm");
-		type.add("isBF");
 
-		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM");
-		Date date = new Date();
-		String dateFormat = simpleDateFormat.format(date);
-
-		for (Map<String, Object> map : list) {
-			try {
-				financeMysql.insertFinace(map, type, dateFormat);
-			} catch (Exception e) {
-				LOGGER.error(e.getMessage(), e);
-			}
+		for (Map<String, Object> userInfo : list) {
+			financeMysql.insertUserInfo(userInfo);
 		}
 
-		insertDeviceZoneService(list);
+		LOGGER.info("end !!");
+
+		// List<String> type = new ArrayList<String>();
+		// type.add("E123");
+		// type.add("E122");
+		// type.add("E134");
+		// type.add("E131");
+		// type.add("E130");
+		// type.add("hj_error");
+		// type.add("rg_error");
+		// type.add("sb_error");
+		// type.add("isAlarm");
+		// type.add("noAlarm");
+		// type.add("isBF");
+		//
+		// SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM");
+		// Date date = new Date();
+		// String dateFormat = simpleDateFormat.format(date);
+		//
+		// for (Map<String, Object> map : list) {
+		// try {
+		// financeMysql.insertFinace(map, type, dateFormat);
+		// } catch (Exception e) {
+		// LOGGER.error(e.getMessage(), e);
+		// }
+		// }
+		//
+		// insertDeviceZoneService(list);
 
 		json.put("code", 200);
 		json.put("msg", "success");

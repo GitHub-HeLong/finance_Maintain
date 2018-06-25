@@ -6,7 +6,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.PropertySource;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import com.server.DeviceBCFService;
@@ -31,13 +30,13 @@ public class CheckTime {
 
 	private @Value("${checkTime}") String queryEventUrl;
 
-	@Scheduled(cron = "${checkTime}")
+	// @Scheduled(cron = "${checkTime}")
 	public void taskCycle() throws Exception {
 		LOGGER.info(" --- CheckTime ---");
 		springMVCService.queryFinanceService();// 获取用户信息表
 	}
 
-	@Scheduled(cron = "${checkUpdateBCF}")
+	// @Scheduled(cron = "${checkUpdateBCF}")
 	public void checkUpdateBCF() throws Exception {
 		LOGGER.info(" --- checkUpdateBCF ---");
 		deviceBCFService.updateBCFService(); // 更新布撤防信息

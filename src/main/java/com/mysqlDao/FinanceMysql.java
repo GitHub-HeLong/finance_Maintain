@@ -5,9 +5,15 @@ import java.util.Map;
 
 public interface FinanceMysql {
 
+	/**
+	 * 批量插入每月用户
+	 */
 	public void insertFinace(final Map<String, Object> map,
 			final List<String> type, final String month);
 
+	/**
+	 * 获取事件表中，某个月份的所有用户编号
+	 */
 	public List<Map<String, Object>> queryUserOrderByMonth(String month);
 
 	/**
@@ -20,6 +26,9 @@ public interface FinanceMysql {
 	 */
 	public void cleanTryZone();
 
+	/**
+	 * 插入设备试机信息
+	 */
 	public void insertDeviceZone(final List<Map<String, Object>> list);
 
 	public void insertDeviceTyrZone(final List<Map<String, Object>> list,
@@ -31,5 +40,15 @@ public interface FinanceMysql {
 			String eventType);
 
 	public void updateBCF(String month, String D, String userId, String devId);
+
+	/**
+	 * 查询银行小类信息
+	 */
+	public List<Map<String, Object>> queryBankSubTypeName();
+
+	/**
+	 * 把用户信息写入用户信息表中
+	 */
+	public void insertUserInfo(Map<String, Object> userInfo);
 
 }

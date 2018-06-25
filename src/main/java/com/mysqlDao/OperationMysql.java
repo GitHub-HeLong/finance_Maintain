@@ -11,14 +11,12 @@ import java.util.Map;
  */
 public interface OperationMysql {
 
-	public List<Map<String, Object>> queryDate();
-
 	/**
-	 * 查询所有金融行业的用户以及主设备等信息
+	 * 根据银行小类名称查询符合范围内的用户信息,并且把用户所属的大类和小类写入数据返回
 	 * 
 	 * @return
 	 */
-	public List<Map<String, Object>> queryFinance();
+	public List<Map<String, Object>> queryFinance(Map<String, Object> bankSub);
 
 	/**
 	 * 查询所有用户主设备的防区

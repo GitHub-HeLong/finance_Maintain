@@ -52,7 +52,7 @@ public class SpringMVCCtrl {
 
 		springMVCService.queryFinanceService();// 获取用户信息表
 
-		eventService.checkoutTryZoneAndAlarm(); // 更新试机表信息
+		// eventService.checkoutTryZoneAndAlarm(); // 更新试机表信息
 
 		// // 获取真警信息更新到数据事件表
 		// String[] actualSituations = { "3", "6", "7" };
@@ -78,20 +78,22 @@ public class SpringMVCCtrl {
 
 		LOGGER.info(" --- 初始化用户信息开始 --- ");
 
-		springMVCService.queryFinanceService();// 获取用户信息表
-
-		eventService.checkoutTryZoneAndAlarm(); // 更新试机表信息
-
-		// 获取真警信息更新到数据事件表
-		String[] actualSituations = { "3", "6", "7" };
-		eventService.checkIsAlarm("processing", actualSituations, "isAlarm");
-
-		// 获取误报信息更新到数据事件表
-		String[] noAlarmActualSituations = { "4", "5", "8", "9", "10", "12" };
-		eventService.checkIsAlarm("verify", noAlarmActualSituations, "noAlarm");
-
-		// 更新布撤防信息
-		deviceBCFService.updateBCFService();
+		// springMVCService.queryFinanceService();// 获取用户信息表
+		//
+		// eventService.checkoutTryZoneAndAlarm(); // 更新试机表信息
+		//
+		// // 获取真警信息更新到数据事件表
+		// String[] actualSituations = { "3", "6", "7" };
+		// eventService.checkIsAlarm("processing", actualSituations, "isAlarm");
+		//
+		// // 获取误报信息更新到数据事件表
+		// String[] noAlarmActualSituations = { "4", "5", "8", "9", "10", "12"
+		// };
+		// eventService.checkIsAlarm("verify", noAlarmActualSituations,
+		// "noAlarm");
+		//
+		// // 更新布撤防信息
+		// deviceBCFService.updateBCFService();
 
 		LOGGER.info(" --- 初始化用户信息结束--- ");
 

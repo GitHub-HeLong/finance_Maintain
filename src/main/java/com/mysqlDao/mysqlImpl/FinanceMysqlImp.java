@@ -181,4 +181,23 @@ public class FinanceMysqlImp implements FinanceMysql {
 		int i = financeJdbcTemplate.update(sql, userId, devId, month);
 	}
 
+	/**
+	 * 查询银行小类信息
+	 */
+	public List<Map<String, Object>> queryBankSubTypeName() {
+		String sql = "SELECT * FROM bank_type WHERE parentId  != '0'";
+		List<Map<String, Object>> list = financeJdbcTemplate.queryForList(sql);
+		return list;
+	}
+
+	public void insertUserInfo(Map<String, Object> userInfo) {
+		String sql = "INSERT INTO user_info (companyId,userId,userName,bankType,bankSubType,devId,devLng,devLat) VALUES(?,?,?,?,?,?,?,?)";
+		financeJdbcTemplate.update(sql, userInfo.get("platformId").toString(),
+				userInfo.get("userId").toString(), userInfo.get("userName")
+						.toString(), userInfo.get("bankType").toString(),
+				userInfo.get("bankSubType").toString(), userInfo.get("devId")
+						.toString(), userInfo.get("devLng").toString(),
+				userInfo.get("devlat").toString());
+	}
+
 }

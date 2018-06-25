@@ -1,5 +1,6 @@
 package com.mysqlDao.mysqlImpl;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -22,22 +23,27 @@ public class OperationMysqlImp implements OperationMysql {
 	@Resource(name = "jdbcTemplate")
 	private JdbcTemplate jdbctemplate;
 
-	public List<Map<String, Object>> queryDate() {
-		String sql = "SELECT * FROM imm_camera LIMIT 0,10";
-		List<Map<String, Object>> list = jdbctemplate.queryForList(sql);
-		return list;
-	}
-
 	/**
-	 * 查询所有金融行业的用户以及主设备和用户本平台id信息 设备只统计报警主机
+	 * 根据银行小类名称查询符合范围内的用户信息,并且把用户所属的大类和小类写入数据返回
 	 * 
 	 * @return
 	 */
-	public List<Map<String, Object>> queryFinance() {
-		String sql = "SELECT a.userId,b.platformId,d.devId,c.devInstDate FROM imm_customerattr a,imm_userinfo b,imm_devinfo c,imm_alarmhostattr d "
-				+ "WHERE a.businessId IN (19,42,65) AND a.userId=b.userId AND a.userId=c.ownerId AND c.controlType IN ('master','both') and c.devId=d.devId";
+	public List<Map<String, Object>> queryFinance(Map<String, Object> bankSub) {
+		String sql = " SELECT a.userId,a.userName,a.platformId,b.devId,b.devLng,b.devlat "
+				+ " FROM imm_userinfo a,imm_devinfo b "
+				+ " WHERE a.userId=b.ownerId AND b.controlType IN ('master','both') AND a.userName LIKE '%"
+				+ bankSub.get("bankName").toString() + "%'";
 		List<Map<String, Object>> list = jdbctemplate.queryForList(sql);
-		return list;
+
+		List<Map<String, Object>> resultList = new ArrayList<Map<String, Object>>();
+
+		for (Map<String, Object> map : list) {
+			map.put("bankType", bankSub.get("parentId"));
+			map.put("bankSubType", bankSub.get("bankId"));
+			resultList.add(map);
+		}
+
+		return resultList;
 	}
 
 	/**
