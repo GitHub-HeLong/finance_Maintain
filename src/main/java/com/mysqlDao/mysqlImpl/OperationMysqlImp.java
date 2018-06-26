@@ -29,10 +29,10 @@ public class OperationMysqlImp implements OperationMysql {
 	 * @return
 	 */
 	public List<Map<String, Object>> queryFinance(Map<String, Object> bankSub) {
-		String sql = " SELECT a.userId,a.userName,a.platformId,b.devId,b.devLng,b.devlat "
+		String sql = " SELECT a.userId,a.userName,a.platformId,b.devId,b.devLng,b.devlat,b.devInstDate "
 				+ " FROM imm_userinfo a,imm_devinfo b "
 				+ " WHERE a.userId=b.ownerId AND b.controlType IN ('master','both') AND a.userName LIKE '%"
-				+ bankSub.get("bankName").toString() + "%'";
+				+ bankSub.get("bankNameRule").toString() + "%'";
 		List<Map<String, Object>> list = jdbctemplate.queryForList(sql);
 
 		List<Map<String, Object>> resultList = new ArrayList<Map<String, Object>>();
@@ -64,7 +64,7 @@ public class OperationMysqlImp implements OperationMysql {
 		}
 		devIds.append(")");
 
-		String sql = "SELECT devId,devZoneId FROM imm_devzone WHERE devId IN "
+		String sql = "SELECT devId,devZoneId,snType FROM imm_devzone WHERE devId IN "
 				+ devIds;
 		List<Map<String, Object>> result = jdbctemplate.queryForList(sql);
 		return result;
