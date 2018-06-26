@@ -25,21 +25,22 @@ public class FinanceMysqlImp implements FinanceMysql {
 	private JdbcTemplate financeJdbcTemplate;
 
 	/**
-	 * 批量插入每月用户
+	 * 批量插入每月用户信息到事件表
 	 */
 	public void insertFinace(final Map<String, Object> map,
 			final List<String> type, final String month) {
 
-		String sql = "insert into event_info (companyId,userId,devId,month,eventType) values(?,?,?,?,?)";
+		String sql = "insert into event_info (companyId,bankType,bankSubType,userId,month,eventType) values(?,?,?,?,?,?)";
 		financeJdbcTemplate.batchUpdate(sql,
 				new BatchPreparedStatementSetter() {
 					public void setValues(PreparedStatement ps, int i)
 							throws SQLException {
 						ps.setString(1, (String) map.get("platformId"));
-						ps.setString(2, (String) map.get("userId"));
-						ps.setString(3, (String) map.get("devId"));
-						ps.setString(4, month);
-						ps.setString(5, type.get(i));
+						ps.setString(2, map.get("bankType") + "");
+						ps.setString(3, map.get("bankSubType") + "");
+						ps.setString(4, (String) map.get("userId"));
+						ps.setString(5, month);
+						ps.setString(6, type.get(i));
 					}
 
 					public int getBatchSize() {
@@ -69,10 +70,10 @@ public class FinanceMysqlImp implements FinanceMysql {
 	}
 
 	/**
-	 * 插入设备试机信息
+	 * 插入设备信息
 	 */
 	public void insertDeviceZone(final List<Map<String, Object>> list) {
-		String sql = "INSERT INTO try_alarm (companyId,userId,devId,MONTH,zoneNum,oldDate) VALUES(?,?,?,?,?,?)";
+		String sql = "INSERT INTO device_info (companyId,bankType,bankSubType,userId,devId,MONTH,zoneNum,oldDate) VALUES(?,?,?,?,?,?,?,?)";
 		financeJdbcTemplate.batchUpdate(sql,
 				new BatchPreparedStatementSetter() {
 					public void setValues(PreparedStatement ps, int i)
@@ -81,11 +82,13 @@ public class FinanceMysqlImp implements FinanceMysql {
 						Map<String, Object> map = list.get(i);
 
 						ps.setString(1, (String) map.get("companyId"));
-						ps.setString(2, (String) map.get("userId"));
-						ps.setString(3, (String) map.get("devId"));
-						ps.setString(4, (String) map.get("MONTH"));
-						ps.setInt(5, (Integer) map.get("zoneNum"));
-						ps.setInt(6, (Integer) map.get("oldDate"));
+						ps.setString(2, map.get("bankType") + "");
+						ps.setString(3, map.get("bankSubType") + "");
+						ps.setString(4, (String) map.get("userId"));
+						ps.setString(5, (String) map.get("devId"));
+						ps.setString(6, (String) map.get("MONTH"));
+						ps.setInt(7, (Integer) map.get("zoneNum"));
+						ps.setInt(8, (Integer) map.get("oldDate"));
 					}
 
 					public int getBatchSize() {
@@ -107,7 +110,8 @@ public class FinanceMysqlImp implements FinanceMysql {
 	 */
 	public void insertDeviceTyrZone(final List<Map<String, Object>> list,
 			final List<Map<String, Object>> results) {
-		String sql = "INSERT INTO try_zone (companyId,userId,devId,zone) VALUES(?,?,?,?)";
+		System.out.println("aaa");
+		String sql = "INSERT INTO devzone_info (companyId,userId,devId,zone,devModelId,protect) VALUES(?,?,?,?,?,?)";
 		financeJdbcTemplate.batchUpdate(sql,
 				new BatchPreparedStatementSetter() {
 					public void setValues(PreparedStatement ps, int i)
@@ -118,14 +122,22 @@ public class FinanceMysqlImp implements FinanceMysql {
 						Map<String, Object> map = null;
 						for (Map<String, Object> mapChild : list) {
 							if (result.get("devId").equals(
-									mapChild.get("devId")))
+									mapChild.get("devId"))) {
 								map = mapChild;
+							} else {
+								continue;
+							}
 						}
+
+						int devModelId = Integer.parseInt(result.get("snType")
+								.toString());
 
 						ps.setString(1, (String) map.get("companyId"));
 						ps.setString(2, (String) map.get("userId"));
 						ps.setString(3, (String) result.get("devId"));
 						ps.setString(4, (String) result.get("devZoneId"));
+						ps.setInt(5, devModelId);
+						ps.setInt(6, protectType(devModelId));
 
 					}
 
@@ -133,6 +145,22 @@ public class FinanceMysqlImp implements FinanceMysql {
 						return results.size();
 					}
 				});
+	}
+
+	private int protectType(int protect) {
+		int i = 3;
+		switch (protect) {
+		case 0:
+			i = 0;
+			break;
+		case 1:
+			i = 1;
+			break;
+		case 2:
+			i = 2;
+			break;
+		}
+		return i;
 	}
 
 	/**

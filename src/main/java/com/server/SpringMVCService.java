@@ -60,24 +60,33 @@ public class SpringMVCService {
 			LOGGER.error(e.getMessage(), e);
 		}
 
-		for (Map<String, Object> userInfo : list) {
-			financeMysql.insertUserInfo(userInfo);
-		}
-
-		LOGGER.info("end !!");
+		// for (Map<String, Object> userInfo : list) {
+		// financeMysql.insertUserInfo(userInfo);
+		// }
 
 		// List<String> type = new ArrayList<String>();
-		// type.add("E123");
-		// type.add("E122");
-		// type.add("E134");
-		// type.add("E131");
-		// type.add("E130");
-		// type.add("hj_error");
-		// type.add("rg_error");
-		// type.add("sb_error");
+		// type.add("oneLevel");
+		// type.add("towLevel");
+		// type.add("threeLevel");
+		// type.add("yhError");
+		// type.add("hjError");
+		// type.add("azError");
+		// type.add("sbError");
+		// type.add("wzError");
 		// type.add("isAlarm");
 		// type.add("noAlarm");
-		// type.add("isBF");
+		// type.add("userTest");
+		// type.add("skillTest");
+		// type.add("companyArarm");
+		// type.add("noCompanyArarm");
+		// type.add("noCommandArarm");
+		// type.add("commandArarm");
+		// type.add("noCCAram");
+		// type.add("routeBad");
+		// type.add("arrears");
+		// type.add("unknown");
+		// type.add("noBF");
+		// type.add("CCAram");
 		//
 		// SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM");
 		// Date date = new Date();
@@ -90,8 +99,8 @@ public class SpringMVCService {
 		// LOGGER.error(e.getMessage(), e);
 		// }
 		// }
-		//
-		// insertDeviceZoneService(list);
+
+		insertDeviceZoneService(list);
 
 		json.put("code", 200);
 		json.put("msg", "success");
@@ -110,7 +119,7 @@ public class SpringMVCService {
 
 		List<Map<String, Object>> results = null;
 		try {
-			results = operationMysql.queryDeviceZones(list);// 获取到设备编号和设备防区
+			results = operationMysql.queryDeviceZones(list);// 获取到设备编号、设备防区、防区类型
 		} catch (Exception e) {
 			LOGGER.error(e.getMessage(), e);
 		}
@@ -129,6 +138,8 @@ public class SpringMVCService {
 		for (Map<String, Object> mapDevinfo : list) {
 			Map<String, Object> mapTry = new HashMap<String, Object>();
 			mapTry.put("companyId", mapDevinfo.get("platformId"));
+			mapTry.put("bankType", mapDevinfo.get("bankType"));
+			mapTry.put("bankSubType", mapDevinfo.get("bankSubType"));
 			mapTry.put("userId", mapDevinfo.get("userId"));
 			mapTry.put("devId", mapDevinfo.get("devId"));
 			mapTry.put("MONTH", dateFormat);
@@ -140,9 +151,9 @@ public class SpringMVCService {
 		}
 
 		try {
-			financeMysql.insertDeviceZone(tryAlarm); // 插入数据到试机表
+			// financeMysql.insertDeviceZone(tryAlarm); // 插入数据到试机表
 
-			financeMysql.cleanTryZone(); // 每个月清空试机防区表数据，或者每次加载数据的时候清空表数据
+			// financeMysql.cleanTryZone(); // 每个月清空试机防区表数据，或者每次加载数据的时候清空表数据
 			financeMysql.insertDeviceTyrZone(tryAlarm, results); // 插入数据到试机防区表
 		} catch (Exception e) {
 			LOGGER.error(e.getMessage(), e);

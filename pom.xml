@@ -2,10 +2,10 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.ywzn</groupId>
-  <artifactId>finance-Maintain</artifactId>
+  <artifactId>finance_Maintain</artifactId>
   <packaging>war</packaging>
   <version>0.0.1-SNAPSHOT</version>
-  <name>finance-Maintain Maven Webapp</name>
+  <name>finance_Maintain Maven Webapp</name>
   <url>http://maven.apache.org</url>
   <dependencies>
 	<!-- HttpTool工具用到的包 开始 -->
@@ -173,6 +173,6 @@
 	<!-- spring 的基本依赖 结束 -->
   </dependencies>
   <build>
-    <finalName>finance-Maintain</finalName>
+    <finalName>finance_Maintain</finalName>
   </build>
 </project>
