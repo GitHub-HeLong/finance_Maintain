@@ -1,8 +1,5 @@
 package com.es.imp;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import javax.annotation.Resource;
@@ -21,6 +18,7 @@ import org.springframework.stereotype.Repository;
 import com.es.ESUtils;
 import com.es.EsDao;
 import com.mysqlDao.FinanceMysql;
+import com.tool.KeyValue;
 
 @Repository
 public class EsDaoImpl implements EsDao {
@@ -29,30 +27,23 @@ public class EsDaoImpl implements EsDao {
 
 	static int LIMIT = 100;
 
-	static List<String> sysCodys = new ArrayList<String>();
-	static List<String> errorType = new ArrayList<String>();
-	static Map<String, String> mapError = new HashMap<String, String>();
-
-	static {
-		sysCodys.add("E123");
-		sysCodys.add("E122");
-		sysCodys.add("E134");
-		sysCodys.add("E131");
-		sysCodys.add("E130");
-
-		errorType.add("9");
-		errorType.add("10");
-		errorType.add("12");
-
-		mapError.put("9", "rg_error");
-		mapError.put("10", "hj_error");
-		mapError.put("12", "sb_error");
-	}
+	// // 真警类型
+	// static List<String> isAlarmTypes = new ArrayList<String>();
+	// static Map<String, String> mapIsAlarm = new HashMap<String, String>();
+	//
+	// // 误报类型
+	// static List<String> errorType = new ArrayList<String>();
+	// static Map<String, String> mapError = new HashMap<String, String>();
+	//
+	// // 级别报警
+	// static List<String> levelType = new ArrayList<String>();
+	// static Map<String, String> mapLevel = new HashMap<String, String>();
 
 	@Resource
 	FinanceMysql financeMysql;
 
 	// 根据用户编号和月份、设备防区编号，查询设备防区是否试机
+	// ，由于防区编号已经不存在单据中，所以换了一个方法（updateTryStatus），此方法目前不用
 	public long queryTryZone(String userId, String eventTimeStart,
 			String zoneId, String index) {
 
@@ -71,6 +62,53 @@ public class EsDaoImpl implements EsDao {
 
 		return size;
 
+	}
+
+	/**
+	 * 处警单、核警单，查询用户的是否存在试机信息，存在则更新防区表和设备表
+	 */
+	public void updateTryStatus(String userId, String eventTimeStart,
+			String index) {
+
+		BoolQueryBuilder boolQuery = new BoolQueryBuilder();
+		boolQuery.must(QueryBuilders.termQuery("accountNum", userId));
+		boolQuery.must(QueryBuilders.rangeQuery("eventTime")
+				.gte(eventTimeStart));
+		boolQuery.must(QueryBuilders.termQuery("actualSituation", "1"));
+
+		long total = countIndex(index, boolQuery);
+
+		int pages = (int) Math.ceil(total * 1.0 / LIMIT);
+
+		for (int i = 1; i <= pages; i++) {
+			SearchResponse searchResponse = ESUtils.client.prepareSearch(index)
+					.setQuery(boolQuery).setFrom((i - 1) * LIMIT)
+					.setSize(LIMIT).execute().actionGet();
+
+			SearchHits hits = searchResponse.getHits();
+			SearchHit[] searchHits = hits.getHits();
+
+			for (SearchHit hit : searchHits) {
+
+				Map<String, Object> map = hit.sourceAsMap();
+				String eventTime = null;
+				String month = null;
+				String eventNum = null;
+				try {
+					eventTime = map.get("eventTime").toString()
+							.substring(0, 10);
+					month = eventTime.substring(0, 7);
+					eventNum = map.get("eventNum").toString();// 单据中的事件编号
+				} catch (Exception e) {
+					LOGGER.error("获取信息异常 es info :{}", map.toString());
+					continue;
+				}
+
+				String zoneId = checkDevZoneId(eventNum); // 获取设备防区编号
+
+				financeMysql.updateDeviceTyrZone(userId, zoneId, month); // 更新试机信息
+			}
+		}
 	}
 
 	/**
@@ -93,6 +131,7 @@ public class EsDaoImpl implements EsDao {
 	 */
 
 	// 根据月份,报警原因类型,去EX表中查询处警单、核警单的试机，真警，误报事件
+	// --》应该是原来的逻辑查询单据中所有的用户，但是每次返回默认只有10条，给了逻辑用下面的函数分页，所以这个方法没有使用
 	public SearchResponse queryTryAlarm(String index, String eventTimeStart,
 			String[] actualSituations) throws Exception {
 
@@ -118,15 +157,16 @@ public class EsDaoImpl implements EsDao {
 	 * 查询用户的单据中事件是真警和误报的单据事件,更新到数据库中
 	 */
 	public void queryEventToUpdateEventinof(String userId,
-			String eventTimeStart, String[] actualSituations, String index,
-			String eventType) {
+			String eventTimeStart, String fieldType, String[] actualSituations,
+			String index, String eventType) {
 		BoolQueryBuilder boolQuery = new BoolQueryBuilder();
 
 		boolQuery.must(QueryBuilders.termQuery("accountNum", userId));
 		boolQuery.must(QueryBuilders.rangeQuery("eventTime")
 				.gte(eventTimeStart));
-		boolQuery.must(QueryBuilders.termsQuery("actualSituation",
-				actualSituations));
+		// boolQuery.must(QueryBuilders.termsQuery("actualSituation",
+		// actualSituations));
+		boolQuery.must(QueryBuilders.termsQuery(fieldType, actualSituations));
 
 		long total = countIndex(index, boolQuery);
 
@@ -141,50 +181,74 @@ public class EsDaoImpl implements EsDao {
 			SearchHit[] searchHits = hits.getHits();
 
 			for (SearchHit hit : searchHits) {
+
 				Map<String, Object> map = hit.sourceAsMap();
 				String eventTime = map.get("eventTime").toString()
 						.substring(0, 10);
 				String month = eventTime.substring(0, 7);
 				String D = Integer.parseInt(eventTime.substring(8, 10)) + "";
-				String actualSituation = map.get("actualSituation").toString();
-				String eventNum = map.get("eventNum").toString();
-				String sysCode = null;
 
-				LOGGER.info("更新了真警、误报事件  userId: " + userId + "  eventType:"
+				String actualSituation = null;
+				try {
+					actualSituation = map.get("actualSituation").toString();// 处警单、核警单用到
+				} catch (Exception e) {
+					LOGGER.error("单据获取报警原因异常  esInfo:{}", map.toString());
+					continue;
+				}
+
+				String codeTypeId = null;// 级别报警中用到
+
+				LOGGER.info("更新真警、误报事件  userId: " + userId + "  eventType:"
 						+ eventType);
+
+				if ("noIsAlarmAndError".equals(eventType)) {// 判断为非真警、非误报需要统计的报警类型
+
+					eventType = KeyValue
+							.notIsAlarmAndErrorValue(actualSituation);
+
+				} else if ("level".equals(eventType)) {// 判断为级别信息
+					try {
+						codeTypeId = map.get("codeTypeId").toString();
+					} catch (Exception e) {
+						LOGGER.error("事件表中获取系统码异常  esInfo:{}", map.toString());
+						continue;
+					}
+
+					eventType = KeyValue.mapLevel.get(codeTypeId);
+				}
 
 				financeMysql.updateEvent(userId, month, D, eventType);
 
 				if ("isAlarm".equals(eventType)) {
-					sysCode = checkSysCode(eventNum);
 
-					if (sysCodys.contains(sysCode)) {
-						LOGGER.info("更新了真警子类型  userId: " + userId
-								+ "  sysCode:" + sysCode);
+					LOGGER.info("更新了真警子类型  userId: " + userId
+							+ "  actualSituation:"
+							+ KeyValue.mapError.get(actualSituation));
 
-						financeMysql.updateEvent(userId, month, D, sysCode);
+					if (KeyValue.isAlarmTypes.contains(actualSituation)) {
+						financeMysql.updateEvent(userId, month, D,
+								KeyValue.mapIsAlarm.get(actualSituation));
 					}
 
 				} else if ("noAlarm".equals(eventType)) {
 
-					if (errorType.contains(actualSituation)) {
+					if (KeyValue.errorType.contains(actualSituation)) {
 						LOGGER.info("更新了误报子类型  userId: " + userId
-								+ "  sysCode:" + mapError.get(actualSituation));
+								+ "  actualSituation:"
+								+ KeyValue.mapError.get(actualSituation));
 
 						financeMysql.updateEvent(userId, month, D,
-								mapError.get(actualSituation));
+								KeyValue.mapError.get(actualSituation));
 					}
-
 				}
-
 			}
 		}
 	}
 
 	/**
-	 * 根据事件编号查询事件索引中的系统码
+	 * 根据事件编号查询事件索引中的设备防区
 	 */
-	public String checkSysCode(String eventNum) {
+	public String checkDevZoneId(String eventNum) {
 
 		BoolQueryBuilder boolQuery = new BoolQueryBuilder();
 		boolQuery.must(QueryBuilders.termQuery("eventNum", eventNum));
@@ -196,19 +260,24 @@ public class EsDaoImpl implements EsDao {
 		SearchHits hits = searchResponse.getHits();
 		SearchHit[] searchHits = hits.getHits();
 
-		String sysCode = null;
+		String devZoneId = null;
 		for (SearchHit hit : searchHits) {
 			Map<String, Object> map = hit.sourceAsMap();
-			sysCode = map.get("sysCode").toString();
+			try {
+				devZoneId = map.get("devZoneId").toString();
+			} catch (Exception e) {
+				LOGGER.error("事件表获取设备防区标号异常  esInfo:{}", map.toString());
+				continue;
+			}
 
-			if (sysCode != null) {
+			if (devZoneId != null) {
 				break;
 			}
 		}
-		return sysCode;
+		return devZoneId;
 	}
 
-	// 根据月份，系统码，去EX的真警中查询有声劫盗，无声劫盗，出入防区，周边防区，盗取
+	// 根据月份，系统码，去EX的真警中查询有声劫盗，无声劫盗，出入防区，周边防区，盗取，上版本逻辑，这个方法没有使用
 	public SearchResponse queryAlarmType(String eventTimeStart, String sysCode)
 			throws Exception {
 		try {

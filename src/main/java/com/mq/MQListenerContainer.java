@@ -1,6 +1,7 @@
 package com.mq;
 
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.annotation.Resource;
 import javax.jms.JMSException;
@@ -18,9 +19,54 @@ import com.server.MqService;
 public class MQListenerContainer implements MessageListener {
 	private Logger logger = Logger.getLogger(MQListenerContainer.class);
 
-	String[] sysCody = { "E123", "E122", "E134", "E131", "E130" };
-	String[] verifyActualSituation = { "1", "4", "5", "8", "9", "10", "12" };
-	String[] processingActualSituation = { "3", "6", "7" };
+	// 需要统计的级别报警
+	static List<String> codeTypeIds = new ArrayList<String>();
+
+	// 核警单报警类型（包含了需要统计的和不需要统计的）
+	static List<String> verifyActualSituation = new ArrayList<String>();
+
+	// 处警单报警类型（包含了需要统计的和不需要统计的）
+	static List<String> processingActualSituation = new ArrayList<String>();
+
+	static {
+		codeTypeIds.add("0");
+		codeTypeIds.add("1");
+		codeTypeIds.add("2");
+		codeTypeIds.add("3");
+		codeTypeIds.add("4");
+		codeTypeIds.add("6");
+		codeTypeIds.add("10");
+		codeTypeIds.add("14");
+
+		verifyActualSituation.add("1");
+		verifyActualSituation.add("2");
+		verifyActualSituation.add("4");
+		verifyActualSituation.add("5");
+		verifyActualSituation.add("8");
+		verifyActualSituation.add("9");
+		verifyActualSituation.add("10");
+		verifyActualSituation.add("11");
+		verifyActualSituation.add("12");
+		verifyActualSituation.add("13");
+		verifyActualSituation.add("14");
+		verifyActualSituation.add("15");
+		verifyActualSituation.add("17");
+		verifyActualSituation.add("18");
+
+		processingActualSituation.add("1");
+		processingActualSituation.add("2");
+		processingActualSituation.add("3");
+		processingActualSituation.add("4");
+		processingActualSituation.add("5");
+		processingActualSituation.add("6");
+		processingActualSituation.add("7");
+		processingActualSituation.add("8");
+		processingActualSituation.add("14");
+		processingActualSituation.add("15");
+		processingActualSituation.add("17");
+		processingActualSituation.add("18");
+
+	}
 
 	@Resource
 	MqService mqService;
@@ -39,20 +85,21 @@ public class MQListenerContainer implements MessageListener {
 
 				if ("complete".equals(mode)
 						&& "2".equals(alertPojo.get("disposeType"))
-						&& Arrays.asList(verifyActualSituation).contains( // 新核警单
-								alertPojo.get("actualSituation"))) {
+						&& verifyActualSituation.contains(alertPojo// 新核警单
+								.get("actualSituation"))) {
 
-					logger.info(" -- 新核警单 -- ");
-					mqService.verifyInfo(alertPojo);
+					mqService.verifyInfo1(alertPojo);
 
 				} else if ("complete".equals(mode)
 						&& "1".equals(alertPojo.get("disposeType"))
-						&& Arrays.asList(processingActualSituation).contains( // 新处警单
+						&& processingActualSituation.contains( // 新处警单
 								alertPojo.get("actualSituation"))) {
 
-					logger.info(" -- 新处警单 -- ");
-					mqService.processingInfo(alertPojo);
+					mqService.processingInfo1(alertPojo);
 
+				} else if ("add".equals(mode)// 新级别报警
+						&& codeTypeIds.contains(alertPojo.get("codeTypeId"))) {
+					mqService.levelInfo(alertPojo);
 				}
 
 			} catch (JMSException e) {

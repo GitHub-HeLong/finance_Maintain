@@ -6,6 +6,8 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -19,6 +21,7 @@ import com.server.EventService;
 import com.server.SpringMVCService;
 import com.tool.HttpTool;
 
+@PropertySource(value = { "classpath:properties/config.properties" })
 @Controller
 @RequestMapping("springMVCCtrl")
 public class SpringMVCCtrl {
@@ -44,28 +47,54 @@ public class SpringMVCCtrl {
 	@Resource
 	MqTopicSendServer mqTopicSendServer;
 
+	private @Value("${initIsBFTime}") String initIsBFTime;
+
 	@RequestMapping("requestService")
 	@ResponseBody
 	public JSONObject requestService(HttpServletRequest request,
 			HttpServletResponse response) throws Exception {
 		JSONObject json = new JSONObject();
 
-		springMVCService.queryFinanceService();// 获取用户信息表
+		// 加载用户基本信息
+		springMVCService.queryFinanceService();
 
-		// eventService.checkoutTryZoneAndAlarm(); // 更新试机表信息
+		// 获取真警信息更新到数据事件表
+		String[] actualSituations = { "3", "6", "7" };
+		eventService.checkIsAlarm("processing", "actualSituation",
+				actualSituations, "isAlarm");
 
-		// // 获取真警信息更新到数据事件表
-		// String[] actualSituations = { "3", "6", "7" };
-		// eventService.checkIsAlarm("processing", actualSituations, "isAlarm");
-		//
-		// // 获取误报信息更新到数据事件表
-		// String[] noAlarmActualSituations = { "4", "5", "8", "9", "10", "12"
-		// };
-		// eventService.checkIsAlarm("verify", noAlarmActualSituations,
-		// "noAlarm");
-		//
-		// // 更新布撤防信息
-		// deviceBCFService.updateBCFService();
+		// 处警单中：获取误报信息更新到数据事件表
+		String[] noAlarmActualSituations = { "9", "10", "11", "12", "13" };
+		eventService.checkIsAlarm("processing", "actualSituation",
+				noAlarmActualSituations, "noAlarm");
+		// 核单中：获取误报信息更新到数据事件表
+		eventService.checkIsAlarm("verify", "actualSituation",
+				noAlarmActualSituations, "noAlarm");
+
+		// 获取非真警、非误报信息更新到数据事件表
+		String[] noisAlarmAndError = { "1", "2", "4", "5", "8", "14", "15",
+				"17", "18" };
+		eventService.checkIsAlarm("processing", "actualSituation",
+				noisAlarmAndError, "noIsAlarmAndError");
+		eventService.checkIsAlarm("verify", "actualSituation",
+				noisAlarmAndError, "noIsAlarmAndError");
+
+		// 获取级别报警写入到事件表
+		String[] levels = { "0", "1", "2", "3", "4", "6", "10", "14" };
+		eventService.checkIsAlarm("alert_processing", "codeTypeId", levels,
+				"level");
+
+		// 更新布撤防信息
+		LOGGER.info("initIsBFTime:{}", initIsBFTime);
+		deviceBCFService.updateBCFService(initIsBFTime);
+
+		// 更新试机信息
+		eventService.checkoutTryZoneAndAlarm();
+
+		// 风险排行,初始化布撤防数、真警数
+		deviceBCFService.initRanking(true);
+
+		LOGGER.info("---初始化信息结束---");
 
 		return json;
 	}
@@ -78,24 +107,46 @@ public class SpringMVCCtrl {
 
 		LOGGER.info(" --- 初始化用户信息开始 --- ");
 
-		// springMVCService.queryFinanceService();// 获取用户信息表
-		//
-		// eventService.checkoutTryZoneAndAlarm(); // 更新试机表信息
-		//
-		// // 获取真警信息更新到数据事件表
-		// String[] actualSituations = { "3", "6", "7" };
-		// eventService.checkIsAlarm("processing", actualSituations, "isAlarm");
-		//
-		// // 获取误报信息更新到数据事件表
-		// String[] noAlarmActualSituations = { "4", "5", "8", "9", "10", "12"
-		// };
-		// eventService.checkIsAlarm("verify", noAlarmActualSituations,
-		// "noAlarm");
-		//
-		// // 更新布撤防信息
-		// deviceBCFService.updateBCFService();
+		// 加载用户基本信息
+		springMVCService.queryFinanceService();
 
-		LOGGER.info(" --- 初始化用户信息结束--- ");
+		// 获取真警信息更新到数据事件表
+		String[] actualSituations = { "3", "6", "7" };
+		eventService.checkIsAlarm("processing", "actualSituation",
+				actualSituations, "isAlarm");
+
+		// 处警单中：获取误报信息更新到数据事件表
+		String[] noAlarmActualSituations = { "9", "10", "11", "12", "13" };
+		eventService.checkIsAlarm("processing", "actualSituation",
+				noAlarmActualSituations, "noAlarm");
+		// 核单中：获取误报信息更新到数据事件表
+		eventService.checkIsAlarm("verify", "actualSituation",
+				noAlarmActualSituations, "noAlarm");
+
+		// 获取非真警、非误报信息更新到数据事件表
+		String[] noisAlarmAndError = { "1", "2", "4", "5", "8", "14", "15",
+				"17", "18" };
+		eventService.checkIsAlarm("processing", "actualSituation",
+				noisAlarmAndError, "noIsAlarmAndError");
+		eventService.checkIsAlarm("verify", "actualSituation",
+				noisAlarmAndError, "noIsAlarmAndError");
+
+		// 获取级别报警写入到事件表
+		String[] levels = { "0", "1", "2", "3", "4", "6", "10", "14" };
+		eventService.checkIsAlarm("alert_processing", "codeTypeId", levels,
+				"level");
+
+		// 更新布撤防信息
+		LOGGER.info("initIsBFTime:{}", initIsBFTime);
+		deviceBCFService.updateBCFService(initIsBFTime);
+
+		// 更新试机信息
+		eventService.checkoutTryZoneAndAlarm();
+
+		// 风险排行,初始化布撤防数、真警数
+		deviceBCFService.initRanking(true);
+
+		LOGGER.info("---初始化信息结束---");
 
 		json.put("code", 200);
 		json.put("msg", "success");

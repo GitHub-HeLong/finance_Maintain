@@ -12,11 +12,17 @@ public interface EsDao {
 			String zoneId, String index);
 
 	/**
+	 * 处警单、核警单，查询用户的是否存在试机信息，存在则更新防区表和设备表
+	 */
+	public void updateTryStatus(String userId, String eventTimeStart,
+			String index);
+
+	/**
 	 * 查询用户的单据中事件是真警和误报的单据事件,更新到数据库中
 	 */
 	public void queryEventToUpdateEventinof(String userId,
-			String eventTimeStart, String[] actualSituations, String index,
-			String eventType);
+			String eventTimeStart, String fieldType, String[] actualSituations,
+			String index, String eventType);
 
 	public SearchResponse queryAlarmType(String eventTimeStart, String sysCode)
 			throws Exception;
