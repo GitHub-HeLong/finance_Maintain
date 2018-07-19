@@ -25,13 +25,11 @@ public class OperationMysqlImp implements OperationMysql {
 
 	/**
 	 * 根据银行小类名称查询符合范围内的用户信息,并且把用户所属的大类和小类写入数据返回
-	 * 
-	 * @return
 	 */
 	public List<Map<String, Object>> queryFinance(Map<String, Object> bankSub) {
-		String sql = " SELECT a.userId,a.userName,a.platformId,b.devId,b.devLng,b.devlat,b.devInstDate "
-				+ " FROM imm_userinfo a,imm_devinfo b "
-				+ " WHERE a.userId=b.ownerId AND b.controlType IN ('master','both') AND a.userName LIKE '%"
+		String sql = " SELECT a.userId,a.userName,IFNULL(a.platformId,'') platformId,IFNULL(b.devId,'') devId,IFNULL(b.devLng,0.00) devLng,IFNULL(b.devlat,0.00) devlat,IFNULL(b.devInstDate,'') devInstDate "
+				+ " FROM imm_userinfo a LEFT JOIN imm_devinfo b ON a.userId=b.ownerId AND b.controlType IN ('master','both') "
+				+ " WHERE a.userName LIKE '%"
 				+ bankSub.get("bankNameRule").toString() + "%'";
 		List<Map<String, Object>> list = jdbctemplate.queryForList(sql);
 
@@ -44,6 +42,27 @@ public class OperationMysqlImp implements OperationMysql {
 		}
 
 		return resultList;
+	}
+
+	/**
+	 * 根据用户编号查询用户信息（更新信息功能）
+	 */
+	public Map<String, Object> queryFinanceByUserId(String userId,
+			Map<String, Object> bankSub) {
+		String sql = " SELECT a.userId,a.userName,IFNULL(a.platformId,'') platformId,IFNULL(b.devId,'') devId,IFNULL(b.devLng,0.00) devLng,IFNULL(b.devlat,0.00) devlat,IFNULL(b.devInstDate,'') devInstDate "
+				+ " FROM imm_userinfo a LEFT JOIN imm_devinfo b ON a.userId=b.ownerId AND b.controlType IN ('master','both') "
+				+ " WHERE a.userId ='" + userId + "'";
+		List<Map<String, Object>> list = jdbctemplate.queryForList(sql);
+
+		List<Map<String, Object>> resultList = new ArrayList<Map<String, Object>>();
+
+		for (Map<String, Object> map : list) {
+			map.put("bankType", bankSub.get("parentId"));
+			map.put("bankSubType", bankSub.get("bankId"));
+			resultList.add(map);
+		}
+
+		return resultList.get(0);
 	}
 
 	/**
@@ -71,27 +90,34 @@ public class OperationMysqlImp implements OperationMysql {
 	}
 
 	/**
-	 * 查询设备布撤防转态
+	 * 查询设备布撤防状态
 	 */
-	public List<Map<String, Object>> queryDeviceBCF(
-			List<Map<String, Object>> list) {
+	public int queryDeviceBCF(Map<String, Object> map) {
 
-		StringBuffer userIds = new StringBuffer();
-		userIds.append("(");
-		for (Map<String, Object> map : list) {
-			userIds.append("'" + (String) map.get("devId") + "',");
-		}
-		if (list.size() == 0) {
-			userIds.append("''");
-		} else {
-			userIds.deleteCharAt(userIds.length() - 1);
-		}
-		userIds.append(")");
+		String sql = "SELECT devStatus FROM mcs_devstatus_view WHERE ownId = ? AND devId = ? AND devStatus > 0";
+		List list = jdbctemplate.queryForList(sql, map.get("userId"),
+				map.get("devId"));
 
-		String sql = "SELECT userId,devId,isBF FROM mcs_customer_status WHERE isBF=1 AND userId IN "
-				+ userIds;
+		return list.size();
+	}
+
+	// (sql, String.class)
+	public String queryDevInsDate(String devId) {
+		String sql = "SELECT IFNULL(devInstDate,'') devInstDate FROM imm_devinfo WHERE devId = '"
+				+ devId + "'";
+		String devInstDate = jdbctemplate.queryForObject(sql, String.class);
+		return devInstDate;
+	}
+
+	public List<Map<String, Object>> queryInfo() {
+		String sql = "SELECT id,operationType,operationId,IFNULL(devId,'') devId,IFNULL(remark,'') remark FROM fnc_log";
 		List<Map<String, Object>> result = jdbctemplate.queryForList(sql);
 		return result;
 	}
 
+	@Override
+	public void dellFncLogInfo(String id) {
+		String sql = "DELETE FROM fnc_log WHERE id=?";
+		jdbctemplate.update(sql, id);
+	}
 }
