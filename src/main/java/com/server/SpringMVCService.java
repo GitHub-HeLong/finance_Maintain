@@ -113,6 +113,57 @@ public class SpringMVCService {
 			LOGGER.error(e.getMessage(), e);
 		}
 
+		// SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM");
+		// Date date = new Date();
+		// final String dateFormat = simpleDateFormat.format(date);
+		//
+		// for (final Map<String, Object> map : list) {
+		//
+		// Future<?> alertProcessingsFuture = INCIDENT_THREADPOOL
+		// .submit(new Runnable() {
+		// public void run() {
+		//
+		// try {
+		// financeMysql.insertFinace(map, AgainTool.type,
+		// dateFormat);// 加载用户基本信息到事件表
+		// } catch (Exception e) {
+		// LOGGER.error(e.getMessage(), e);
+		// }
+		//
+		// }
+		// });
+		// futures.add(alertProcessingsFuture);
+		// }
+		//
+		// for (Future<?> future : futures) {
+		// try {
+		// future.get();
+		// } catch (Exception e) {
+		// LOGGER.debug(e.getMessage(), e);
+		// }
+		// }
+		//
+		// LOGGER.info("结束加载用户基本信息到事件表！");
+
+		insertEventService(list);// 插入基本数据到事件表
+
+		insertDeviceZoneService(list); // 加载用户基本信息到设备表、设备防区表
+
+		updateDevInstallType(list, false);// 初始化设备安装类型
+
+		insertDateisBF(list);// 加载用户基本信息到布撤防状态表
+
+		json.put("code", 200);
+		json.put("msg", "success");
+		return json;
+	}
+
+	// 插入基本数据到事件表
+	public JSONObject insertEventService(final List<Map<String, Object>> list) {
+		JSONObject json = new JSONObject();
+
+		List<Future<?>> futures = new ArrayList<Future<?>>();
+
 		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM");
 		Date date = new Date();
 		final String dateFormat = simpleDateFormat.format(date);
@@ -144,11 +195,6 @@ public class SpringMVCService {
 		}
 
 		LOGGER.info("结束加载用户基本信息到事件表！");
-		insertDeviceZoneService(list); // 加载用户基本信息到设备表、设备防区表
-
-		updateDevInstallType(list, false);// 初始化设备安装类型
-
-		insertDateisBF(list);// 加载用户基本信息到布撤防状态表
 
 		json.put("code", 200);
 		json.put("msg", "success");
