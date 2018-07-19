@@ -266,7 +266,7 @@ public class DeviceBCFService {
 
 			// 如果原来的用户没有主设备，那么布撤防表和事件标不会存在记录，现在加了主设备，需要在这两个表中加记录
 			int isBfNum = financeMysql.queryIsBfNum(userId);
-			if (!"".equals(bankInfo.get("devId").toString()) && isBfNum == 0) {
+			if (!"".equals(userInfo.get("devId").toString()) && isBfNum == 0) {
 
 				SimpleDateFormat simpleDateFormat = new SimpleDateFormat(
 						"yyyy-MM");
@@ -290,9 +290,19 @@ public class DeviceBCFService {
 		for (Map<String, Object> bankSub : bankSubTypeList) {
 			String bankSbuName = bankSub.get("bankNameRule").toString();
 			if (userName.indexOf(bankSbuName) != -1) {
-				LOGGER.info("修改用户名称");
-				financeMysql.updateBankType(userId, bankSub.get("parentId")
-						.toString(), bankSub.get("bankId").toString());
+
+				// 查询金融表中用户基本信息
+				List<Map<String, Object>> financeUserInfo = financeMysql
+						.gitUser("userId", userId);
+
+				if (financeUserInfo.size() > 0) {
+					LOGGER.info("金融表存在用户,修改用户名称");
+					financeMysql.updateBankType(userId, bankSub.get("parentId")
+							.toString(), bankSub.get("bankId").toString());
+				} else {
+					LOGGER.info("金融表不存在用户,修改用户名称符合我们的统计范围，需要添加用户");
+					addUser(userId, "", userName);
+				}
 				return;
 			}
 		}
