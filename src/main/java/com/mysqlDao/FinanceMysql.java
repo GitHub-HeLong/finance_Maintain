@@ -183,4 +183,29 @@ public interface FinanceMysql {
 	 */
 	public int queryIsBfNum(String userId);
 
+	/**
+	 * 每个月清空排行表
+	 */
+	public void cleanRankingInfo();
+
+	/**
+	 * 查询含义主设备的用户表信息
+	 */
+	public List<Map<String, Object>> queryUserHaveDevice();
+
+	/**
+	 * 更新设备经纬度
+	 */
+	public void updateDevLngDevLat(String devId, String devLng, String devLat);
+
+	/**
+	 * 更新用户编号
+	 */
+	public void ukpdateUserId(String oldUserId, String newUserId);
+
+	/**
+	 * 清空某天的事件信息,需要把事件总数相对应的减少
+	 */
+	public void cleanEventDate(String month, String D);
+
 }

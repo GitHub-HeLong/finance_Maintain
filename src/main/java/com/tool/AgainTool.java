@@ -80,4 +80,29 @@ public class AgainTool {
 		return i;
 	}
 
+	// 返回年月格式的字符串
+	public static String dataForm() {
+		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM");
+		Date date = new Date();
+		String dateFormat = simpleDateFormat.format(date);
+		return dateFormat;
+	}
+
+	// 返回日期格式的字符串
+	public static String dataForm(String format) {
+		SimpleDateFormat simpleDateFormat = new SimpleDateFormat(format);
+		Date date = new Date();
+		String dateFormat = simpleDateFormat.format(date);
+		return dateFormat;
+	}
+
+	// 获取昨天的日期
+	public static String yesterdayForm() {
+		Calendar cal = Calendar.getInstance();
+		cal.add(Calendar.DATE, -1);
+		String yesterday = new SimpleDateFormat("yyyy-MM-dd").format(cal
+				.getTime());
+		return yesterday;
+	}
+
 }

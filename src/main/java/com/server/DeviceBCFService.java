@@ -2,7 +2,6 @@ package com.server;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -44,26 +43,28 @@ public class DeviceBCFService {
 	public JSONObject updateBCFService(String initIsBFTime) {
 		JSONObject json = new JSONObject();
 
-		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");
-		Date date = new Date();
-		String stringDate = simpleDateFormat.format(date);
+		String stringDate = AgainTool.dataForm("yyyy-MM-dd");
 		String month = stringDate.substring(0, 7);
 
 		String D = Integer.parseInt(stringDate.substring(8, 10)) + "_"
 				+ initIsBFTime;
 
-		List<Map<String, Object>> List = financeMysql // 查询所有用户的主设备
-				.queryDevIdOrderByMonth();
+		try {
+			// 查询所有用户的主设备
+			List<Map<String, Object>> List = financeMysql
+					.queryDevIdOrderByMonth();
 
-		for (Map<String, Object> map : List) {
+			for (Map<String, Object> map : List) {
 
-			int devStatusMap = operationMysql.queryDeviceBCF(map);
-
-			if (devStatusMap > 0) {
-				LOGGER.info("D：{}  ;initIsBFTime:{}", D, initIsBFTime);
-				financeMysql.updateBCF(month, D, map.get("userId").toString(),
-						initIsBFTime);
+				// 查询布设备撤防状态
+				int devStatusMap = operationMysql.queryDeviceBCF(map);
+				if (devStatusMap > 0) {
+					financeMysql.updateBCF(month, D, map.get("userId")
+							.toString(), initIsBFTime);
+				}
 			}
+		} catch (Exception e) {
+			LOGGER.error(e.getMessage(), e);
 		}
 
 		json.put("code", 200);
@@ -71,26 +72,27 @@ public class DeviceBCFService {
 		return json;
 	}
 
-	// 初始化排行的时候布撤防和真警一起初始化，每天定时的时候，只能更新布撤防，真警是实时的
+	// 初始化排行的时候布撤防和真警一起初始化，每天定时的时候，只能更新布撤防，真警是MQ实时更新的
 	public JSONObject initRanking(boolean startUpUpdateIsAlarm) {
 		JSONObject json = new JSONObject();
 
-		List<Map<String, Object>> ctilList = financeMysql.queryCtil();
+		String format = AgainTool.dataForm("yyyy-MM-dd");
+		String month = format.substring(0, 7);
+		int Ds = Integer.parseInt(format.substring(8, 10));
 
-		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");
-		Date date = new Date();
-		String month = simpleDateFormat.format(date).substring(0, 7);
+		try {
+			List<Map<String, Object>> ctilList = financeMysql.queryCtil();
 
-		int Ds = Integer.parseInt(simpleDateFormat.format(date)
-				.substring(8, 10));
+			for (Map<String, Object> map : ctilList) {
+				String ctilId = map.get("id").toString();
+				financeMysql.queryNoBFbyCtilId(ctilId, month, Ds);// 更新布撤防
 
-		for (Map<String, Object> map : ctilList) {
-			String ctilId = map.get("id").toString();
-			financeMysql.queryNoBFbyCtilId(ctilId, month, Ds);// 更新布撤防
-
-			if (startUpUpdateIsAlarm) {
-				financeMysql.updateIsAlarm(ctilId, month); // 更新真警
+				if (startUpUpdateIsAlarm) {
+					financeMysql.updateIsAlarm(ctilId, month); // 更新真警
+				}
 			}
+		} catch (Exception e) {
+			LOGGER.error(e.getMessage(), e);
 		}
 
 		json.put("code", 200);
@@ -140,33 +142,51 @@ public class DeviceBCFService {
 
 			switch (operationType) {
 			case "addUser":
+				// 添加用户
 				addUser(map.get("operationId").toString(), map.get("devId")
 						.toString(), map.get("remark").toString());
 				break;
 			case "dellUser":
+				// 删除用户
 				dellUser(map.get("operationId").toString());
 				break;
 			case "updateUserDevId":
+				// 更新主设备
 				updateUserDevId(map.get("operationId").toString(),
 						map.get("devId").toString());
 				break;
 			case "updateUserName":
+				// 更新用户名
 				updateUserName(map.get("operationId").toString(),
 						map.get("remark").toString());
 				break;
 			case "addZone":
+				// 添加主设备防区
 				addZone(map.get("operationId").toString(), map.get("devId")
 						.toString(), map.get("remark").toString());
 				break;
 			case "dellZone":
+				// 删除主设备防区
 				dellZone(map.get("operationId").toString(), map.get("devId")
 						.toString());
 				break;
 			case "updateZone":
+				// 更新主设备防区探头类型
 				updateZone(map.get("operationId").toString(), map.get("devId")
 						.toString(), map.get("remark").toString());
 				break;
-
+			case "updateDevice":
+				// 更新主设备经纬度
+				// 因为数据库前期表设计没想到设备经纬度的修改，后面的方案是operationId保存设备编号，devId保存经度
+				// ，remark保存纬度
+				updateDevice(map.get("operationId").toString(), map
+						.get("devId").toString(), map.get("remark").toString());
+				break;
+			case "updateUserId":
+				// 更新用户编号
+				updateUserId(map.get("operationId").toString(), map
+						.get("devId").toString());
+				break;
 			default:
 				break;
 			}
@@ -259,8 +279,10 @@ public class DeviceBCFService {
 			financeMysql.dellDevInfo(userId);
 			financeMysql.dellZoneInfo(userId);
 
-			// 更新设备信息表和设备防区表
-			springMVCService.insertDeviceZoneService(list);
+			if (!"".equals(userInfo.get("devId"))) {
+				// 更新设备信息表和设备防区表
+				springMVCService.insertDeviceZoneService(list);
+			}
 			// 更新设备安装类型
 			springMVCService.updateDevInstallType(list, true);
 
@@ -342,7 +364,7 @@ public class DeviceBCFService {
 
 			zoneIds = zoneIds.replace("\"", "");
 			zoneIds = zoneIds.substring(1, zoneIds.length() - 1);
-			List<String> zoneIdsList = Arrays.asList(zoneIds);
+			String[] zoneIdsList = zoneIds.split(",");
 
 			for (String zoneId : zoneIdsList) {
 				// 删除防区，并且设备表中防区数减1
@@ -371,4 +393,35 @@ public class DeviceBCFService {
 		}
 	}
 
+	// 更新设备经纬度的修改
+	public void updateDevice(String devId, String devLng, String devLat) {
+		try {
+			financeMysql.updateDevLngDevLat(devId, devLng, devLat);
+		} catch (Exception e) {
+			LOGGER.error(e.getMessage(), e);
+		}
+	}
+
+	// 更新用户编号
+	public void updateUserId(String oldUserId, String newUserId) {
+		try {
+			List<Map<String, Object>> userInfo = financeMysql.gitUser("userId",
+					oldUserId);
+			if (userInfo.size() > 0) {
+				financeMysql.ukpdateUserId(oldUserId, newUserId);
+			}
+		} catch (Exception e) {
+			LOGGER.error(e.getMessage(), e);
+		}
+	}
+
+	public static void main(String[] args) {
+		String s = "0003,0004";
+
+		String[] strs = s.split(",");
+		for (String n : strs) {
+			System.out.println(n);
+		}
+
+	}
 }

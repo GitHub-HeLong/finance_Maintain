@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.alibaba.fastjson.JSONObject;
-import com.es.EsDao;
 import com.mq.MQSender;
 import com.mq.MqTopicSendServer;
 import com.server.DeviceBCFService;
@@ -39,9 +38,6 @@ public class SpringMVCCtrl {
 	MQSender mqSender;
 
 	@Resource
-	EsDao esDao;
-
-	@Resource
 	DeviceBCFService deviceBCFService;
 
 	@Resource
@@ -55,6 +51,7 @@ public class SpringMVCCtrl {
 			HttpServletResponse response) throws Exception {
 		JSONObject json = new JSONObject();
 
+		LOGGER.info(" --- 初始化用户信息开始 --- ");
 		// 加载用户基本信息
 		springMVCService.queryFinanceService();
 
@@ -85,7 +82,6 @@ public class SpringMVCCtrl {
 				"level");
 
 		// 更新布撤防信息
-		LOGGER.info("initIsBFTime:{}", initIsBFTime);
 		deviceBCFService.updateBCFService(initIsBFTime);
 
 		// 更新试机信息
@@ -106,7 +102,6 @@ public class SpringMVCCtrl {
 		JSONObject json = new JSONObject();
 
 		LOGGER.info(" --- 初始化用户信息开始 --- ");
-
 		// 加载用户基本信息
 		springMVCService.queryFinanceService();
 
@@ -137,7 +132,6 @@ public class SpringMVCCtrl {
 				"level");
 
 		// 更新布撤防信息
-		LOGGER.info("initIsBFTime:{}", initIsBFTime);
 		deviceBCFService.updateBCFService(initIsBFTime);
 
 		// 更新试机信息

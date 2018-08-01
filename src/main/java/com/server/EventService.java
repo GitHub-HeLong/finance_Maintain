@@ -1,8 +1,6 @@
 package com.server;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -19,6 +17,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.es.EsDao;
 import com.mysqlDao.FinanceMysql;
 import com.mysqlDao.OperationMysql;
+import com.tool.AgainTool;
 import com.tool.PropertyConfigUtil;
 
 /**
@@ -54,42 +53,39 @@ public class EventService {
 	EsDao esDao;
 
 	/**
-	 * 检查更新用户试机信息
+	 * 查询处警单核警单中用户试机记录，检查更新用户试机信息
 	 */
 	public JSONObject checkoutTryZoneAndAlarm() {
 		JSONObject json = new JSONObject();
 
 		List<Future<?>> futures = new ArrayList<Future<?>>();
 
-		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM");
-		Date date = new Date();
-		final String month = simpleDateFormat.format(date);
+		final String month = AgainTool.dataForm();
 
-		List<Map<String, Object>> list = financeMysql // 获取所有用户和防区编号
-				.queryTyrZoneOrderByMonth();
-		for (final Map<String, Object> map : list) {
-			Future<?> alertProcessingsFuture = INCIDENT_THREADPOOL
-					.submit(new Runnable() {
-						public void run() {
+		try {
+			List<Map<String, Object>> list = financeMysql // 获取所有用户和防区编号
+					.queryTyrZoneOrderByMonth();
+			for (final Map<String, Object> map : list) {
+				Future<?> alertProcessingsFuture = INCIDENT_THREADPOOL
+						.submit(new Runnable() {
+							public void run() {
+								esDao.updateTryStatus(map.get("userId")
+										.toString(), month + "-01T00:00:00",
+										"verify");
+								esDao.updateTryStatus(map.get("userId")
+										.toString(), month + "-01T00:00:00",
+										"processing");
+							}
+						});
+				futures.add(alertProcessingsFuture);
 
-							esDao.updateTryStatus(map.get("userId").toString(),
-									month + "-01T00:00:00", "verify");
-
-							esDao.updateTryStatus(map.get("userId").toString(),
-									month + "-01T00:00:00", "processing");
-
-						}
-					});
-			futures.add(alertProcessingsFuture);
-
-		}
-
-		for (Future<?> future : futures) {
-			try {
-				future.get();
-			} catch (Exception e) {
-				LOGGER.debug(e.getMessage(), e);
 			}
+
+			for (Future<?> future : futures) {
+				future.get();
+			}
+		} catch (Exception e) {
+			LOGGER.error(e.getMessage(), e);
 		}
 
 		json.put("code", 200);
@@ -107,38 +103,72 @@ public class EventService {
 
 		List<Future<?>> futures = new ArrayList<Future<?>>();
 
-		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM");
-		Date date = new Date();
-		final String month = simpleDateFormat.format(date);
+		final String month = AgainTool.dataForm();
+		List<Map<String, Object>> list = null;
+		try {
+			// 获取当月的所有用户（有主设备的用户）
+			list = financeMysql.queryUserOrderByMonth(month);
 
-		List<Map<String, Object>> list = financeMysql // 获取当月的所有用户（有主设备的用户）
-				.queryUserOrderByMonth(month);
+			for (final Map<String, Object> map : list) {
+				Future<?> alertProcessingsFuture = INCIDENT_THREADPOOL
+						.submit(new Runnable() {
+							public void run() {
+								esDao.queryEventToUpdateEventinof(
+										map.get("userId").toString(), month
+												+ "-01T00:00:00", fieldType,
+										actualSituations, index, eventType);
+							}
+						});
+				futures.add(alertProcessingsFuture);
+			}
 
-		LOGGER.info("list size {}", list.size());
-
-		for (final Map<String, Object> map : list) {
-
-			Future<?> alertProcessingsFuture = INCIDENT_THREADPOOL
-					.submit(new Runnable() {
-						public void run() {
-
-							esDao.queryEventToUpdateEventinof(map.get("userId")
-									.toString(), month + "-01T00:00:00",
-									fieldType, actualSituations, index,
-									eventType);
-
-						}
-					});
-			futures.add(alertProcessingsFuture);
-
+			for (Future<?> future : futures) {
+				future.get();
+			}
+		} catch (Exception e) {
+			LOGGER.error(e.getMessage(), e);
 		}
 
-		for (Future<?> future : futures) {
-			try {
-				future.get();
-			} catch (Exception e) {
-				LOGGER.debug(e.getMessage(), e);
+		json.put("code", 200);
+		json.put("msg", "success");
+		return json;
+	}
+
+	/**
+	 * 深夜更新报警信息
+	 */
+	public JSONObject checkIsAlarmEveryDay(final String index,
+			final String fieldType, final String[] actualSituations,
+			final String eventType) {
+		JSONObject json = new JSONObject();
+
+		List<Future<?>> futures = new ArrayList<Future<?>>();
+
+		final String month = AgainTool.yesterdayForm();
+		List<Map<String, Object>> list = null;
+		try {
+			// 获取当月的所有用户（有主设备的用户）
+			list = financeMysql.queryUserOrderByMonth(month.substring(0, 7));
+
+			for (final Map<String, Object> map : list) {
+				Future<?> alertProcessingsFuture = INCIDENT_THREADPOOL
+						.submit(new Runnable() {
+							public void run() {
+								esDao.queryEventToUpdateEventinof(
+										map.get("userId").toString(), month
+												+ "T00:00:00", month
+												+ "T23:59:59", fieldType,
+										actualSituations, index, eventType);
+							}
+						});
+				futures.add(alertProcessingsFuture);
 			}
+
+			for (Future<?> future : futures) {
+				future.get();
+			}
+		} catch (Exception e) {
+			LOGGER.error(e.getMessage(), e);
 		}
 
 		json.put("code", 200);

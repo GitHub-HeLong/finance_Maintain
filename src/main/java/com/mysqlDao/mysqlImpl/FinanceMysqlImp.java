@@ -56,7 +56,7 @@ public class FinanceMysqlImp implements FinanceMysql {
 	 * 获取事件表中，某个月份的所有用户编号
 	 */
 	public List<Map<String, Object>> queryUserOrderByMonth(String month) {
-		String sql = "SELECT DISTINCT userId FROM event_info WHERE MONTH = ?";
+		String sql = "SELECT DISTINCT userId FROM event_info WHERE MONTH = ? AND userId='10000F929'";
 		List<Map<String, Object>> list = financeJdbcTemplate.queryForList(sql,
 				month);
 		return list;
@@ -112,7 +112,7 @@ public class FinanceMysqlImp implements FinanceMysql {
 	 * 每月更新试机防区表时候清空表中的数据重新加载信息
 	 */
 	public void cleanTryZone() {
-		String sql = "TRUNCATE TABLE try_zone";
+		String sql = "TRUNCATE TABLE devZone_info";
 		financeJdbcTemplate.execute(sql);
 	}
 
@@ -166,9 +166,6 @@ public class FinanceMysqlImp implements FinanceMysql {
 		String sql = "UPDATE devZone_info SET tryStatus=1 WHERE userId =? AND zone=? AND  (tryStatus <> 1 OR tryStatus IS NULL)";
 		int i = financeJdbcTemplate.update(sql, userId, zoneId);
 
-		LOGGER.info("试机用户  accountNum :" + userId + "  试机用户防区zoneNum :"
-				+ zoneId + "  是否更新试机信息i:" + i);
-
 		// 如果设备试机更新成功，在试机表加1
 		if (i == 1) {
 			String sqlTryAlarm = "UPDATE device_info SET tryNum=tryNum+1 WHERE month=? AND userId = ? ";
@@ -187,8 +184,6 @@ public class FinanceMysqlImp implements FinanceMysql {
 
 		int i = financeJdbcTemplate.update(sql, month, userId, eventType);
 
-		LOGGER.info("获取事件信息更新到事件表  userId:" + userId + "  eventType:"
-				+ eventType);
 	}
 
 	/**
@@ -285,8 +280,12 @@ public class FinanceMysqlImp implements FinanceMysql {
 	public String getCompanyId(String devId) {
 		String sql = "SELECT companyId FROM user_info WHERE devId = '" + devId
 				+ "'";
-		String caopanyId = financeJdbcTemplate
-				.queryForObject(sql, String.class);
+		String caopanyId = "";
+		try {
+			caopanyId = financeJdbcTemplate.queryForObject(sql, String.class);
+		} catch (Exception e) {
+			LOGGER.error(e.getMessage(), e);
+		}
 		return caopanyId;
 	}
 
@@ -428,5 +427,45 @@ public class FinanceMysqlImp implements FinanceMysql {
 				+ "'";
 		int i = financeJdbcTemplate.queryForInt(sql);
 		return i;
+	}
+
+	@Override
+	public void cleanRankingInfo() {
+		String sql = "UPDATE ranking_info SET oldDateTotal=0,noBFTotal=0,isAlarmTotal=0";
+		financeJdbcTemplate.update(sql);
+	}
+
+	@Override
+	public List<Map<String, Object>> queryUserHaveDevice() {
+		String sql = "SELECT companyId platformId,userId,userName,bankType,bankSubType,devId,devLng,devLat,devInstallType FROM user_info WHERE devId !=''";
+		List<Map<String, Object>> list = financeJdbcTemplate.queryForList(sql);
+		return list;
+	}
+
+	@Override
+	public void updateDevLngDevLat(String devId, String devLng, String devLat) {
+		String sql = "UPDATE user_info SET devLng=?,devLat=? WHERE devId=?";
+		financeJdbcTemplate.update(sql, devLng, devLat, devId);
+	}
+
+	@Override
+	public void ukpdateUserId(String oldUserId, String newUserId) {
+		String sqlUserInfo = "UPDATE user_info SET userId=? WHERE userId=?";
+		String sqlDeviceInfo = "UPDATE device_info SET userId=? WHERE userId=?";
+		String sqlDevzoneInfo = "UPDATE devzone_info SET userId=? WHERE userId=?";
+		String sqlEventInfo = "UPDATE event_info SET userId=? WHERE userId=?";
+		String sqlIsbfInfo = "UPDATE isbf_info SET userId=? WHERE userId=?";
+		financeJdbcTemplate.update(sqlUserInfo, newUserId, oldUserId);
+		financeJdbcTemplate.update(sqlDeviceInfo, newUserId, oldUserId);
+		financeJdbcTemplate.update(sqlDevzoneInfo, newUserId, oldUserId);
+		financeJdbcTemplate.update(sqlEventInfo, newUserId, oldUserId);
+		financeJdbcTemplate.update(sqlIsbfInfo, newUserId, oldUserId);
+	}
+
+	@Override
+	public void cleanEventDate(String month, String D) {
+		String sqlStr = "UPDATE event_info SET enentTotal=enentTotal-D%s,D%s=0 WHERE month=? AND D%s!=0 ";
+		String sql = String.format(sqlStr, D, D, D);
+		financeJdbcTemplate.update(sql, month);
 	}
 }

@@ -1,8 +1,6 @@
 package com.server;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +43,8 @@ public class SpringMVCService {
 	private static final ExecutorService INCIDENT_THREADPOOL = Executors
 			.newFixedThreadPool(MATERIAL_THREADPLOOL_SIZE);
 
+	int MAXI = 300;
+
 	@Resource
 	OperationMysql operationMysql;
 
@@ -52,7 +52,7 @@ public class SpringMVCService {
 	FinanceMysql financeMysql;
 
 	/**
-	 * 此方法只在每个月初调用一次 1.查询所有金融行业用户 2.插入数据到事件表
+	 * 此方法只在每个月初调用一次 1.查询所有金融行业用户 2.插入数据到用户表
 	 * 
 	 * @return
 	 */
@@ -79,16 +79,11 @@ public class SpringMVCService {
 								List<Map<String, Object>> bankSunList = operationMysql
 										.queryFinance(bankSub);
 								for (final Map<String, Object> userInfo : bankSunList) {
-
 									// 加载用户信息到用户信息表中
 									financeMysql.insertUserInfo(userInfo);
-
 									if ("".equals(userInfo.get("devId")
 											.toString())) {
-
-										LOGGER.info("用户{}没有主设备",
-												userInfo.get("userId")
-														.toString());
+										// 记录没有设备的用户
 										removeUserlist.add(userInfo);
 									}
 								}
@@ -105,53 +100,44 @@ public class SpringMVCService {
 					LOGGER.debug(e.getMessage(), e);
 				}
 			}
-
-			LOGGER.info("结束加载用户信息到用户信息表中！");
+			LOGGER.info("结束加载用户信息到用户信息表中！没有主设备的用户：{}", removeUserlist);
 			list.removeAll(removeUserlist); // 移除没有主设备的用户
-
 		} catch (Exception e) {
 			LOGGER.error(e.getMessage(), e);
 		}
 
-		// SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM");
-		// Date date = new Date();
-		// final String dateFormat = simpleDateFormat.format(date);
-		//
-		// for (final Map<String, Object> map : list) {
-		//
-		// Future<?> alertProcessingsFuture = INCIDENT_THREADPOOL
-		// .submit(new Runnable() {
-		// public void run() {
-		//
-		// try {
-		// financeMysql.insertFinace(map, AgainTool.type,
-		// dateFormat);// 加载用户基本信息到事件表
-		// } catch (Exception e) {
-		// LOGGER.error(e.getMessage(), e);
-		// }
-		//
-		// }
-		// });
-		// futures.add(alertProcessingsFuture);
-		// }
-		//
-		// for (Future<?> future : futures) {
-		// try {
-		// future.get();
-		// } catch (Exception e) {
-		// LOGGER.debug(e.getMessage(), e);
-		// }
-		// }
-		//
-		// LOGGER.info("结束加载用户基本信息到事件表！");
-
 		insertEventService(list);// 插入基本数据到事件表
-
 		insertDeviceZoneService(list); // 加载用户基本信息到设备表、设备防区表
-
 		updateDevInstallType(list, false);// 初始化设备安装类型
-
 		insertDateisBF(list);// 加载用户基本信息到布撤防状态表
+
+		json.put("code", 200);
+		json.put("msg", "success");
+		return json;
+	}
+
+	// 每月加载事件、设备、防区、布撤防基本信息，更新排行榜和设备安装类型
+	public JSONObject updateMonth() {
+		JSONObject json = new JSONObject();
+
+		List<Map<String, Object>> userList = null;
+		// 含有主设备的所有用户信息
+		try {
+			userList = financeMysql.queryUserHaveDevice();
+		} catch (Exception e) {
+			LOGGER.error(e.getMessage(), e);
+		}
+
+		for (Map<String, Object> userInfo : userList) {
+			String devId = (String) userInfo.get("devId");
+			String devInstDate = operationMysql.queryDevInsDate(devId);
+			userInfo.put("devInstDate", devInstDate);
+		}
+
+		insertEventService(userList);// 插入基本数据到事件表
+		insertDeviceZoneService(userList); // 加载用户基本信息到设备表、设备防区表
+		updateDevInstallType(userList, false);// 初始化设备安装类型
+		insertDateisBF(userList);// 加载用户基本信息到布撤防状态表
 
 		json.put("code", 200);
 		json.put("msg", "success");
@@ -164,9 +150,7 @@ public class SpringMVCService {
 
 		List<Future<?>> futures = new ArrayList<Future<?>>();
 
-		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM");
-		Date date = new Date();
-		final String dateFormat = simpleDateFormat.format(date);
+		final String dateFormat = AgainTool.dataForm();
 
 		for (final Map<String, Object> map : list) {
 
@@ -180,7 +164,6 @@ public class SpringMVCService {
 							} catch (Exception e) {
 								LOGGER.error(e.getMessage(), e);
 							}
-
 						}
 					});
 			futures.add(alertProcessingsFuture);
@@ -194,8 +177,6 @@ public class SpringMVCService {
 			}
 		}
 
-		LOGGER.info("结束加载用户基本信息到事件表！");
-
 		json.put("code", 200);
 		json.put("msg", "success");
 		return json;
@@ -207,13 +188,28 @@ public class SpringMVCService {
 	public JSONObject insertDeviceZoneService(List<Map<String, Object>> list) {
 		JSONObject json = new JSONObject();
 
-		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM");
-		Date date = new Date();
-		String dateFormat = simpleDateFormat.format(date);
+		final String dateFormat = AgainTool.dataForm();
 
-		List<Map<String, Object>> results = null;
+		List<Map<String, Object>> results = new ArrayList<Map<String, Object>>();
 		try {
-			results = operationMysql.queryDeviceZones(list);// 获取到设备编号、设备防区、防区类型
+			// results = operationMysql.queryDeviceZones(list);
+
+			// 获取到设备编号、设备防区、防区类型
+			long total = list.size();
+			int pages = (int) Math.ceil(total * 1.0 / MAXI);
+			for (int i = 0; i < pages; i++) {
+
+				int start = i * MAXI;
+				int end = (int) (total > i * MAXI + MAXI ? i * MAXI + MAXI
+						: total);
+
+				List<Map<String, Object>> pageResult = operationMysql
+						.queryDeviceZones(list.subList(start, end));
+				results.addAll(pageResult);
+
+				LOGGER.info("获取设备防区信息第{}次,共{}条", i, pageResult.size());
+			}
+
 		} catch (Exception e) {
 			LOGGER.error(e.getMessage(), e);
 		}
@@ -250,7 +246,11 @@ public class SpringMVCService {
 
 			// 初始化风险排行陈损设备信息
 			if (oldDate) {
-				financeMysql.rankingInfoOldDateTotal(companyId);
+				try {
+					financeMysql.rankingInfoOldDateTotal(companyId);
+				} catch (Exception e) {
+					LOGGER.error(e.getMessage(), e);
+				}
 			}
 
 			tryAlarm.add(mapTry);
@@ -258,13 +258,7 @@ public class SpringMVCService {
 
 		try {
 			financeMysql.insertDeviceZone(tryAlarm); // 插入数据到设备表
-			LOGGER.info("结束加载用户基本信息到设备表！");
-
-			// financeMysql.cleanTryZone(); // 每个月清空试机防区表数据，或者每次加载数据的时候清空表数据
-
 			financeMysql.insertDeviceTyrZone(tryAlarm, results); // 插入数据到设备防区表
-			LOGGER.info("结束加载用户基本信息到设备防区表！");
-
 		} catch (Exception e) {
 			LOGGER.error(e.getMessage(), e);
 		}
@@ -280,14 +274,15 @@ public class SpringMVCService {
 	public JSONObject insertDateisBF(List<Map<String, Object>> list) {
 		JSONObject json = new JSONObject();
 
-		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM");
-		Date date = new Date();
-		String month = simpleDateFormat.format(date);
+		String month = AgainTool.dataForm();
 
-		for (Map<String, Object> userInfo : list) {
-			financeMysql.insertUserInfoIsBFTable(userInfo, month);
+		try {
+			for (Map<String, Object> userInfo : list) {
+				financeMysql.insertUserInfoIsBFTable(userInfo, month);
+			}
+		} catch (Exception e) {
+			LOGGER.error(e.getMessage(), e);
 		}
-		LOGGER.info("结束加载用户基本信息到布撤防状态表！");
 
 		json.put("code", 200);
 		json.put("msg", "success");
@@ -301,29 +296,29 @@ public class SpringMVCService {
 			boolean updateUserDevId) {
 		JSONObject json = new JSONObject();
 
-		for (Map<String, Object> map : list) {
+		try {
+			for (Map<String, Object> map : list) {
 
-			String devId = map.get("devId").toString();
+				String devId = map.get("devId").toString();
+				int result = financeMysql.queryDevInstallType(devId);
 
-			int result = financeMysql.queryDevInstallType(devId);
+				if (result == 2) {
+					financeMysql.updateDevInstallType("2", devId);
+				} else if (result == 1) {
+					financeMysql.updateDevInstallType("1", devId);
+				}
 
-			if (result == 2) {
-				financeMysql.updateDevInstallType("2", devId);
-			} else if (result == 1) {
-				financeMysql.updateDevInstallType("1", devId);
+				// 这个判断在初始化的时候，安装类型默认是0，不需要更新，但是在更换主设备的时候，原来的设备类型不一定是0，所以需要更新
+				if (updateUserDevId && result == 0) {
+					financeMysql.updateDevInstallType("0", devId);
+				}
 			}
-
-			// 这个判断在初始化的时候，安装类型默认是0，不需要更新，但是在更换主设备的时候，原来的设备类型不一定是0，所以需要更新
-			if (updateUserDevId && result == 0) {
-				financeMysql.updateDevInstallType("0", devId);
-			}
-
+		} catch (Exception e) {
+			LOGGER.error(e.getMessage(), e);
 		}
 
 		json.put("code", 200);
 		json.put("msg", "success");
 		return json;
-
 	}
-
 }

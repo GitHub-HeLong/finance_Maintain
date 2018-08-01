@@ -53,7 +53,7 @@ public class MqService {
 	/**
 	 * 更新核警单信息
 	 */
-	public JSONObject verifyInfo1(JSONObject alertPojo) {
+	public JSONObject verifyInfo(JSONObject alertPojo) {
 		JSONObject json = new JSONObject();
 
 		String accountNum = alertPojo.getString("accountNum");
@@ -86,7 +86,6 @@ public class MqService {
 					financeMysql.updateDeviceTyrZone(accountNum, devZoneId,
 							month); // 更新试机信息
 				}
-
 			}
 		} catch (Exception e) {
 			LOGGER.error(e.getMessage(), e);
@@ -100,15 +99,14 @@ public class MqService {
 	/**
 	 * 更新处警单信息
 	 */
-	public JSONObject processingInfo1(JSONObject alertPojo) {
+	public JSONObject processingInfo(JSONObject alertPojo) {
 		JSONObject json = new JSONObject();
 
 		String accountNum = alertPojo.getString("accountNum");
 		String actualSituation = alertPojo.getString("actualSituation");
 		String eventTime = alertPojo.getString("eventTime");
 
-		String D = eventTime.substring(8, 9).equals("0") ? eventTime.substring(
-				9, 10) : eventTime.substring(8, 10);
+		String D = Integer.parseInt(eventTime.substring(8, 10)) + "";
 
 		String month = eventTime.substring(0, 7);
 
@@ -177,8 +175,7 @@ public class MqService {
 		String codeTypeId = alertPojo.getString("codeTypeId");
 		String eventTime = alertPojo.getString("eventTime");
 
-		String D = eventTime.substring(8, 9).equals("0") ? eventTime.substring(
-				9, 10) : eventTime.substring(8, 10);
+		String D = Integer.parseInt(eventTime.substring(8, 10)) + "";
 
 		if (KeyValue.oneLevelType.contains(codeTypeId)) {
 			financeMysql.updateEvent(accountNum, eventTime.substring(0, 7), D,
@@ -221,6 +218,17 @@ public class MqService {
 			}
 		}
 		return devZoneId;
+	}
+
+	/**
+	 * alreadyExisted 修改报警原因
+	 */
+	public JSONObject updateAlarmCause(JSONObject alertPojo) {
+		JSONObject json = new JSONObject();
+
+		json.put("code", 200);
+		json.put("msg", "success");
+		return json;
 	}
 
 }

@@ -91,6 +91,8 @@ public class EsDaoImpl implements EsDao {
 			for (SearchHit hit : searchHits) {
 
 				Map<String, Object> map = hit.sourceAsMap();
+				LOGGER.info("查询试机信息：{}", map.toString());
+
 				String eventTime = null;
 				String month = null;
 				String eventNum = null;
@@ -98,15 +100,21 @@ public class EsDaoImpl implements EsDao {
 					eventTime = map.get("eventTime").toString()
 							.substring(0, 10);
 					month = eventTime.substring(0, 7);
-					eventNum = map.get("eventNum").toString();// 单据中的事件编号
+					// 单据中的事件编号
+					eventNum = map.get("eventNum").toString();
 				} catch (Exception e) {
-					LOGGER.error("获取信息异常 es info :{}", map.toString());
+					LOGGER.error(e.getMessage(), e);
 					continue;
 				}
 
-				String zoneId = checkDevZoneId(eventNum); // 获取设备防区编号
-
-				financeMysql.updateDeviceTyrZone(userId, zoneId, month); // 更新试机信息
+				// 获取设备防区编号
+				String zoneId = checkDevZoneId(eventNum);
+				try {
+					// 更新试机信息
+					financeMysql.updateDeviceTyrZone(userId, zoneId, month);
+				} catch (Exception e) {
+					LOGGER.error(e.getMessage(), e);
+				}
 			}
 		}
 	}
@@ -154,7 +162,7 @@ public class EsDaoImpl implements EsDao {
 	}
 
 	/**
-	 * 查询用户的单据中事件是真警和误报的单据事件,更新到数据库中
+	 * 查询用户的单据中事件是真警和误报的单据事件,更新到数据库中,此方法查询本月的数据
 	 */
 	public void queryEventToUpdateEventinof(String userId,
 			String eventTimeStart, String fieldType, String[] actualSituations,
@@ -164,12 +172,9 @@ public class EsDaoImpl implements EsDao {
 		boolQuery.must(QueryBuilders.termQuery("accountNum", userId));
 		boolQuery.must(QueryBuilders.rangeQuery("eventTime")
 				.gte(eventTimeStart));
-		// boolQuery.must(QueryBuilders.termsQuery("actualSituation",
-		// actualSituations));
 		boolQuery.must(QueryBuilders.termsQuery(fieldType, actualSituations));
 
 		long total = countIndex(index, boolQuery);
-
 		int pages = (int) Math.ceil(total * 1.0 / LIMIT);
 
 		for (int i = 1; i <= pages; i++) {
@@ -183,6 +188,8 @@ public class EsDaoImpl implements EsDao {
 			for (SearchHit hit : searchHits) {
 
 				Map<String, Object> map = hit.sourceAsMap();
+				LOGGER.info("事件信息：{}", map.toString());
+
 				String eventTime = map.get("eventTime").toString()
 						.substring(0, 10);
 				String month = eventTime.substring(0, 7);
@@ -192,54 +199,123 @@ public class EsDaoImpl implements EsDao {
 				try {
 					actualSituation = map.get("actualSituation").toString();// 处警单、核警单用到
 				} catch (Exception e) {
-					LOGGER.error("单据获取报警原因异常  esInfo:{}", map.toString());
+					LOGGER.error(e.getMessage(), e);
 					continue;
 				}
 
 				String codeTypeId = null;// 级别报警中用到
 
-				LOGGER.info("更新真警、误报事件  userId: " + userId + "  eventType:"
-						+ eventType);
-
 				if ("noIsAlarmAndError".equals(eventType)) {// 判断为非真警、非误报需要统计的报警类型
-
 					eventType = KeyValue
 							.notIsAlarmAndErrorValue(actualSituation);
-
 				} else if ("level".equals(eventType)) {// 判断为级别信息
 					try {
 						codeTypeId = map.get("codeTypeId").toString();
 					} catch (Exception e) {
-						LOGGER.error("事件表中获取系统码异常  esInfo:{}", map.toString());
+						LOGGER.error(e.getMessage(), e);
 						continue;
 					}
-
 					eventType = KeyValue.mapLevel.get(codeTypeId);
 				}
 
-				financeMysql.updateEvent(userId, month, D, eventType);
+				try {
+					financeMysql.updateEvent(userId, month, D, eventType);
 
-				if ("isAlarm".equals(eventType)) {
-
-					LOGGER.info("更新了真警子类型  userId: " + userId
-							+ "  actualSituation:"
-							+ KeyValue.mapError.get(actualSituation));
-
-					if (KeyValue.isAlarmTypes.contains(actualSituation)) {
-						financeMysql.updateEvent(userId, month, D,
-								KeyValue.mapIsAlarm.get(actualSituation));
+					if ("isAlarm".equals(eventType)) {
+						if (KeyValue.isAlarmTypes.contains(actualSituation)) {
+							financeMysql.updateEvent(userId, month, D,
+									KeyValue.mapIsAlarm.get(actualSituation));
+						}
+					} else if ("noAlarm".equals(eventType)) {
+						if (KeyValue.errorType.contains(actualSituation)) {
+							financeMysql.updateEvent(userId, month, D,
+									KeyValue.mapError.get(actualSituation));
+						}
 					}
+				} catch (Exception e) {
+					LOGGER.error(e.getMessage(), e);
+				}
+			}
+		}
+	}
 
-				} else if ("noAlarm".equals(eventType)) {
+	/**
+	 * 查询用户的单据中事件是真警和误报的单据事件,更新到数据库中,此方法查询昨天的数据
+	 */
+	public void queryEventToUpdateEventinof(String userId,
+			String eventTimeStart, String eventTimeEnd, String fieldType,
+			String[] actualSituations, String index, String eventType) {
+		BoolQueryBuilder boolQuery = new BoolQueryBuilder();
 
-					if (KeyValue.errorType.contains(actualSituation)) {
-						LOGGER.info("更新了误报子类型  userId: " + userId
-								+ "  actualSituation:"
-								+ KeyValue.mapError.get(actualSituation));
+		boolQuery.must(QueryBuilders.termQuery("accountNum", userId));
 
-						financeMysql.updateEvent(userId, month, D,
-								KeyValue.mapError.get(actualSituation));
+		boolQuery.must(QueryBuilders.rangeQuery("eventTime")
+				.gte(eventTimeStart));
+
+		boolQuery.must(QueryBuilders.rangeQuery("eventTime").lt(eventTimeEnd));
+
+		boolQuery.must(QueryBuilders.termsQuery(fieldType, actualSituations));
+
+		long total = countIndex(index, boolQuery);
+		int pages = (int) Math.ceil(total * 1.0 / LIMIT);
+
+		for (int i = 1; i <= pages; i++) {
+			SearchResponse searchResponse = ESUtils.client.prepareSearch(index)
+					.setQuery(boolQuery).setFrom((i - 1) * LIMIT)
+					.setSize(LIMIT).execute().actionGet();
+
+			SearchHits hits = searchResponse.getHits();
+			SearchHit[] searchHits = hits.getHits();
+
+			for (SearchHit hit : searchHits) {
+
+				Map<String, Object> map = hit.sourceAsMap();
+				LOGGER.info("事件信息：{}", map.toString());
+
+				String eventTime = map.get("eventTime").toString()
+						.substring(0, 10);
+				String month = eventTime.substring(0, 7);
+				String D = Integer.parseInt(eventTime.substring(8, 10)) + "";
+
+				String actualSituation = null;
+				try {
+					actualSituation = map.get("actualSituation").toString();// 处警单、核警单用到
+				} catch (Exception e) {
+					LOGGER.error(e.getMessage(), e);
+					continue;
+				}
+
+				String codeTypeId = null;// 级别报警中用到
+
+				if ("noIsAlarmAndError".equals(eventType)) {// 判断为非真警、非误报需要统计的报警类型
+					eventType = KeyValue
+							.notIsAlarmAndErrorValue(actualSituation);
+				} else if ("level".equals(eventType)) {// 判断为级别信息
+					try {
+						codeTypeId = map.get("codeTypeId").toString();
+					} catch (Exception e) {
+						LOGGER.error(e.getMessage(), e);
+						continue;
 					}
+					eventType = KeyValue.mapLevel.get(codeTypeId);
+				}
+
+				try {
+					financeMysql.updateEvent(userId, month, D, eventType);
+
+					if ("isAlarm".equals(eventType)) {
+						if (KeyValue.isAlarmTypes.contains(actualSituation)) {
+							financeMysql.updateEvent(userId, month, D,
+									KeyValue.mapIsAlarm.get(actualSituation));
+						}
+					} else if ("noAlarm".equals(eventType)) {
+						if (KeyValue.errorType.contains(actualSituation)) {
+							financeMysql.updateEvent(userId, month, D,
+									KeyValue.mapError.get(actualSituation));
+						}
+					}
+				} catch (Exception e) {
+					LOGGER.error(e.getMessage(), e);
 				}
 			}
 		}

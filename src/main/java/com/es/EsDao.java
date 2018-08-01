@@ -24,6 +24,13 @@ public interface EsDao {
 			String eventTimeStart, String fieldType, String[] actualSituations,
 			String index, String eventType);
 
+	/**
+	 * 查询用户的单据中事件是真警和误报的单据事件,更新到数据库中,此方法查询昨天的数据
+	 */
+	public void queryEventToUpdateEventinof(String userId,
+			String eventTimeStart, String eventTimeEnd, String fieldType,
+			String[] actualSituations, String index, String eventType);
+
 	public SearchResponse queryAlarmType(String eventTimeStart, String sysCode)
 			throws Exception;
 

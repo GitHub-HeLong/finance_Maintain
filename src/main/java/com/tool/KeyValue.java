@@ -29,6 +29,12 @@ public class KeyValue {
 	// 非真警、非误报的报警类型
 	public static List<String> noIsAlarmTypesAndErrorTypes = new ArrayList<String>();
 
+	// MQ监听：核警单报警类型（包含了需要统计的和不需要统计的）
+	public static List<String> verifyActualSituation = new ArrayList<String>();
+
+	// MQ监听：处警单报警类型（包含了需要统计的和不需要统计的）
+	public static List<String> processingActualSituation = new ArrayList<String>();
+
 	static {
 		isAlarmTypes.add("3");
 		isAlarmTypes.add("6");
@@ -90,6 +96,39 @@ public class KeyValue {
 		noIsAlarmTypesAndErrorTypes.add("15");
 		noIsAlarmTypesAndErrorTypes.add("17");
 		noIsAlarmTypesAndErrorTypes.add("18");
+
+		verifyActualSituation.add("1");
+		verifyActualSituation.add("2");
+		verifyActualSituation.add("4");
+		verifyActualSituation.add("5");
+		verifyActualSituation.add("8");
+		verifyActualSituation.add("9");
+		verifyActualSituation.add("10");
+		verifyActualSituation.add("11");
+		verifyActualSituation.add("12");
+		verifyActualSituation.add("13");
+		verifyActualSituation.add("14");
+		verifyActualSituation.add("15");
+		verifyActualSituation.add("17");
+		verifyActualSituation.add("18");
+
+		processingActualSituation.add("1");
+		processingActualSituation.add("2");
+		processingActualSituation.add("3");
+		processingActualSituation.add("4");
+		processingActualSituation.add("5");
+		processingActualSituation.add("6");
+		processingActualSituation.add("7");
+		processingActualSituation.add("8");
+		processingActualSituation.add("9");
+		processingActualSituation.add("10");
+		processingActualSituation.add("11");
+		processingActualSituation.add("12");
+		processingActualSituation.add("13");
+		processingActualSituation.add("14");
+		processingActualSituation.add("15");
+		processingActualSituation.add("17");
+		processingActualSituation.add("18");
 
 	}
 
